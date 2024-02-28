@@ -1,0 +1,184 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+using namespace std;
+
+class Contact {
+public:
+    string name;
+    string phoneNumber;
+
+    Contact(const string& name, const string& phoneNumber)
+        : name(name), phoneNumber(phoneNumber) {}
+
+    string getName() const {
+        return name;
+    }
+
+    string getPhoneNumber() const {
+        return phoneNumber;
+    }
+};
+
+class Phonebook {
+public:
+    vector<Contact> contacts;
+
+    void add(const string& filename) {
+        ofstream file(filename, ios::app);
+        if (file.is_open()) {
+            Contact newContact("", "");
+            cout << "Enter name: ";
+            cin.ignore();
+            getline(cin, newContact.name);
+
+            do {
+                cout << "Enter 10-digit phone number: ";
+                getline(cin, newContact.phoneNumber);
+            } while (!isValidPhoneNumber(newContact.phoneNumber));
+
+            if (contactExistsByPhoneNumber(newContact.phoneNumber)) {
+                cout << "Error: Contact with the same phone number already exists.\n";
+            } else {
+                file << newContact.name << "," << newContact.phoneNumber << "\n";
+                cout << "Contact Added\n";
+                contacts.push_back(newContact);
+            }
+        } else {
+            cerr << "Error: Unable to open file for writing.\n";
+        }
+    }
+
+    bool isValidPhoneNumber(const string& phoneNumber) const {
+        return phoneNumber.length() == 10 && all_of(phoneNumber.begin(), phoneNumber.end(), ::isdigit);
+    }
+
+    bool contactExistsByPhoneNumber(const string& phoneNumber) const {
+        return any_of(contacts.begin(), contacts.end(), [phoneNumber](const Contact& contact) {
+            return contact.getPhoneNumber() == phoneNumber;
+        });
+    }
+
+    void deleteFromFile(const string& filename, const string& name) {
+        contacts.erase(remove_if(contacts.begin(), contacts.end(),
+                                 [name](const Contact& contact) {
+                                     return contact.getName() == name;
+                                 }),
+                       contacts.end());
+
+        ifstream inputFile(filename);
+        ofstream outputFile("temp.txt");
+
+        if (inputFile.is_open() && outputFile.is_open()) {
+            string line;
+            while (getline(inputFile, line)) {
+                size_t pos = line.find(",");
+                if (pos != string::npos) {
+                    string contactName = line.substr(0, pos);
+                    if (contactName != name) {
+                        outputFile << line << "\n";
+                    }
+                }
+            }
+
+            inputFile.close();
+            outputFile.close();
+
+            remove(filename.c_str());
+            rename("temp.txt", filename.c_str());
+
+            cout << "Contact deleted from file: " << name << "\n";
+        } else {
+            cerr << "Error: Unable to open file for reading or writing.\n";
+        }
+    }
+
+    void searchInFile(const string& filename, const string& name) const {
+        ifstream file(filename);
+        if (file.is_open()) {
+            string line;
+            while (getline(file, line)) {
+                size_t pos = line.find(",");
+                if (pos != string::npos) {
+                    string contactName = line.substr(0, pos);
+                    if (contactName == name) {
+                        cout << "Contact found in file:\n";
+                        cout << "Name: " << contactName << "\tPhone Number: " << line.substr(pos + 1) << "\n";
+                        return;
+                    }
+                }
+            }
+            cout << "Contact not found in file for name: " << name << "\n";
+        } else {
+            cerr << "Error: Unable to open file for reading.\n";
+        }
+    }
+
+    void displayFromFile(const string& filename) const {
+        ifstream file(filename);
+        if (file.is_open()) {
+            string line;
+            while (getline(file, line)) {
+                size_t pos = line.find(",");
+                if (pos != string::npos) {
+                    cout << "Name: " << line.substr(0, pos) << "\tPhone Number: " << line.substr(pos + 1) << "\n";
+                }
+            }
+        } else {
+            cerr << "Error: Unable to open file for reading.\n";
+        }
+    }
+};
+
+int main() {
+    Phonebook phonebook;
+
+    while (true) {
+        cout << "\n    MENU\n";
+        cout << "1. Add Contact\n";
+        cout << "2. Display Contacts\n";
+        cout << "3. Search Contact \n";
+        cout << "4. Delete Contact \n";
+        cout << "5. Exit\n";
+        cout << "Enter your choice: ";
+
+        int choice;
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                phonebook.add("phonebook.txt");
+                break;
+           
+            case 2:
+                phonebook.displayFromFile("phonebook.txt");
+                break;
+            case 3: {
+                string searchName;
+                cout << "Enter name to search: ";
+                cin.ignore();
+                getline(cin, searchName);
+                phonebook.searchInFile("phonebook.txt", searchName);
+                break;
+            }
+            case 4: {
+                string deleteName;
+                cout << "Enter name to delete: ";
+                cin.ignore();
+                getline(cin, deleteName);
+                phonebook.deleteFromFile("phonebook.txt", deleteName);
+                break;
+            }
+            case 5:
+                cout << "Exiting program.\n";
+                return 0;
+            default:
+                cout << "Invalid choice. Please enter a valid option.\n";
+        }
+    }
+
+    return 0;
+}
